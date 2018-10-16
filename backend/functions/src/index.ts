@@ -1,7 +1,13 @@
-import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions';
 
 admin.initializeApp(functions.config().firebase);
+
+// Update to use new timestamp behavior.
+const firestore = new admin.firestore.Firestore();
+firestore.settings({
+    timestampsInSnapshots: true,
+});
 
 // Event - we are notified that there is a new message
 // Grab the new message
