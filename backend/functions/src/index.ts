@@ -1,15 +1,13 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-admin.initializeApp(functions.config().firebase);
 
-// Start writing Firebase Functions
-// https://firebase.google.com/docs/functions/typescript
+admin.initializeApp(functions.config().firebase);
 
 // Event - we are notified that there is a new message
 // Grab the new message
 // See who it is "to"
-// Grab that person's block list
-// Verify that the sender isn't in the block list
+// TODO: Grab that person's block list
+// TODO: Verify that the sender isn't in the block list
 // If not, write the message to the recipient's inbox
 
 export const listenToOutbox = functions.firestore
@@ -26,12 +24,15 @@ export const listenToOutbox = functions.firestore
         const senderId = context.params['senderId'];
         const recipientId = context.params['recipientId'];
 
-        admin.firestore()
-            .doc(`users/${recipientId}/received/${senderId}`)
+        return admin.firestore()
+            .collection('users')
+            .doc(recipientId)
+            .collection('received')
+            .doc(senderId)
             .set(document)
-            .then((_) => {
-            // log the success
-        }).catch((_) => {
-            // log the failure
-        });
+            .then(() => {
+                console.info(
+                    `message - to: ${recipientId} from: ${senderId}`);
+            }
+        );
     });
