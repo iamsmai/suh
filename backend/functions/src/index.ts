@@ -9,6 +9,8 @@ firestore.settings({
     timestampsInSnapshots: true,
 });
 
+const db = admin.firestore();
+
 // Event - we are notified that there is a new message
 // Grab the new message
 // See who it is "to"
@@ -16,29 +18,62 @@ firestore.settings({
 // TODO: Verify that the sender isn't in the block list
 // If not, write the message to the recipient's inbox
 
-export const listenToOutbox = functions.firestore
-    .document('users/{senderId}/sent/{recipientId}')
-    .onUpdate((change, context) => {
-        // Expect the document to have this shape:
-        // {
-        //   "char": "...",
-        //   "color": "...",
-        //   "time": "...",
-        // }
-        const document = change.after.data();
+function propagateMessage(
+    snapshot: FirebaseFirestore.DocumentSnapshot,
+    context: functions.EventContext): any {
+    // Expect the document to have this shape:
+    // {
+    //   "char": "...",
+    //   "color": "...",
+    //   "time": "...",
+    // }
+    const document = snapshot.data();
+    const senderId = context.params['senderId'];
+    const recipientId = context.params['recipientId'];
+    const recipient = db
+        .collection('users')
+        .doc(recipientId);
 
-        const senderId = context.params['senderId'];
-        const recipientId = context.params['recipientId'];
+    recipient.get().then(doc => {
+        if (!doc.exists) {
+            console.error(`recipient not found: ${recipientId}`);
+            return;
+        }
 
-        return admin.firestore()
-            .collection('users')
-            .doc(recipientId)
+        const recipientData = doc.data();
+        const recipentBlockList = recipientData['blocked'];
+
+        if (recipentBlockList !== undefined) {
+            const senderIsBlocked = recipentBlockList.find(senderId) !== undefined;
+
+            if (senderIsBlocked) {
+                console.info(`message from ${senderId} blocked by ${recipientId}`);
+                return;
+            }
+        }
+
+        recipient
             .collection('received')
             .doc(senderId)
             .set(document)
             .then(() => {
-                console.info(
-                    `message - to: ${recipientId} from: ${senderId}`);
-            }
-        );
+                    console.info(
+                        `message - to: ${recipientId} from: ${senderId}`);
+                }
+            ).catch(reason => {
+                throw reason;
+            });
+    }).catch(reason => {
+        console.error(reason);
     });
+}
+
+export const listenToOutboxChanged = functions.firestore
+    .document('users/{senderId}/sent/{recipientId}')
+    .onUpdate((change, context) => {
+        propagateMessage(change.after, context);
+    });
+
+export const listenToOutboxCreated = functions.firestore
+    .document('users/{senderId}/sent/{recipientId}')
+    .onCreate(propagateMessage);
