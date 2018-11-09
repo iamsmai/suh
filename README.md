@@ -3,6 +3,8 @@
 SUH is a cool Flutter mobile app where you can send messages to your friends! 
 I mean your fam!
 
+To run, clone this repo, cd into it, make sure Flutter is installed correctly by checking `flutter doctor`, open an emulator of your choice, and `flutter run`
+
 ## Suh App Schema
 
 ### User
